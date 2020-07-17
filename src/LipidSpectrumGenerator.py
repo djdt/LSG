@@ -1,5 +1,6 @@
 import tkinter as tk
 from itertools import combinations_with_replacement as cwr
+from itertools import permutations as per
 from itertools import compress
 import time
 
@@ -20,7 +21,7 @@ Glycerophospholipids_Options = {'Lyso':False,
                                 'Diacyl':False}
 FA_Options = {'Plasmenyl':False,
               'Odd_Chains':False}
-Sphingolipids = {'Sphingosine':False,
+Sphingolipids = {'Sphingosine':True,
                  'N-acylsphingosine':True}
 Phosphosphingolipids = {'PA':False,
                         'PC':False,
@@ -30,7 +31,7 @@ Phosphosphingolipids = {'PA':False,
                         'PIP':False,
                         'PIP2':False,
                         'PS':False}
-Sphingo_Options = {'Variable_Sphingosine_Length':False}
+Sphingo_Options = {'Variable_Sphingosine_Length':True}
 Chain_Number = {'MAG':1,
                 'DAG':2,
                 'TAG':3,
@@ -152,8 +153,23 @@ def calculate_peaks(path, species, tails, Adduct, lipids):
         except: pass
         for tail in tails:
             name.append(tail[0])
-        print(tails)
-
+        if Adduct_Masses[Adduct][1] == 'N' and Charge_Options['NEG'] == True: # Negative spectra
+            Peaks.append([Mass - 30.010565 - Masses['H'], 25])
+            Peaks.append([Mass - 32.026215 - Masses['H'], 12])
+            Peaks.append([Mass - 30.010565 - Masses['H2O'] - Masses['H'], 12])
+            try:
+                Peaks.append([tails[1][1] - Masses['H'], 12])
+                Peaks.append([Mass - (tails[0][1] - 61.052764) - Masses['H2O'] - Masses['H'], 100])
+                Peaks.append([Mass - (tails[0][1] - 61.052764) - 3*Masses['H'], 12])
+            except: pass
+        elif Adduct_Masses[Adduct][1] == 'P' and Charge_Options['POS'] == True: # Positive Spectra
+            Peaks.append([Mass - Masses['H2O'] + Adduct_Masses[Adduct][0], 60])
+            Peaks.append([Mass - 2*Masses['H2O'] + Adduct_Masses[Adduct][0], 25])
+            try:
+                Peaks.append([Mass - tails[1][1] + Adduct_Masses[Adduct][0], 25])
+                Peaks.append([Mass - tails[1][1] - Masses['H2O'] + Adduct_Masses[Adduct][0], 25])
+            except: pass
+        Peaks.append([Mass + Adduct_Masses[Adduct][0], 25])
 
     new_Peaks = [] # Work around to remove duplicates from fragment list   
     for peak in Peaks:
@@ -179,18 +195,21 @@ def calculate_acyl_tail(tail):
 def calculate_sphingo_tail(tail):
 
     tails = []
+    if Sphingo_Options['Variable_Sphingosine_Length'] == True:
+        c_d = tail[0]
+    else: c_d = [18, 1]
 
-    c_d = tail[0]
     if c_d[0] >= 3:
-        Name = f"S_{c_d[0]}:{c_d[1]}"
+        Name = f"Sp_{c_d[0]}:{c_d[1]}"
         Mass = (91.063329 + (c_d[0] - 3)*14.01565007 - c_d[1]*2.01565007)
-        tails.append([Name, Mass])
+        if [Name, Mass] not in tails: tails.append([Name, Mass])
+        else: pass
     else: pass
 
     try: 
         c_d = tail[1]
         if c_d[0] >= 2:
-            Name = f"{c_d[0]}:{c_d[1]}"
+            Name = f"N_{c_d[0]}:{c_d[1]}"
             Mass = (31.98982926 + c_d[0]*14.01565007 - c_d[1]*2.01565007)
             tails.append([Name, Mass])
         else: pass
@@ -234,7 +253,7 @@ def new_spectrum_library():
 
     for lipid in list(compress([lipid for lipid in Sphingolipids],[int(Sphingolipids[lipid]) for lipid in Sphingolipids])): # For Sphingolipids and N-acyl-Sphingolipids Currently Doesnt Work.
         for Adduct in Adduct_Definitions[lipid]:
-            for comb in cwr(tails, Chain_Number[lipid]):
+            for comb in per(tails, Chain_Number[lipid]):
                 calculate_peaks(3, lipid, calculate_sphingo_tail(comb), Adduct, lipids)
         
     return lipids
