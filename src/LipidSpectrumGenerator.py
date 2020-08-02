@@ -4,34 +4,38 @@ from itertools import product
 from itertools import compress
 import time
 
-Charge_Options = {'POS':True,
-                  'NEG':False}
-Glycerolipids = {'MAG':False, 
-                 'DAG':False,
-                 'TAG':False}
-Glycerophospholipids = {'PA':False,
-                        'PC':False,
-                        'PE':False,
-                        'PG':False,
-                        'PI':False,
-                        'PIP':False,
-                        'PIP2':False,
-                        'PS':False}
-Glycerophospholipids_Options = {'Lyso':False,
-                                'Diacyl':True}
+Charge_Options = {'POS':True,           #
+                  'NEG':False}          #
+Glycerolipids = {'MAG':False,           #
+                 'DAG':False,           #
+                 'TAG':False}           #
+Glycero_phospho_glyco_lipids = {'PA':False,     #
+                                'PC':False,     #
+                                'PE':False,     #
+                                'PG':False,     #
+                                'PI':False,     #
+                                'PIP':False,    
+                                'PIP2':False,   
+                                'PS':False,     #
+                                'MGDG':True,    #
+                                'DGDG':True}    #
+Glycero_phospho_glyco_lipids_Options = {'Lyso':False,   #
+                                        'Diacyl':True}  #
 FA_Options = {'Plasmenyl':False,
-              'Odd_Chains':False}
-Sphingolipids = {'Sphingosine':False,
-                 'N-acylsphingosine':True}
+              'Odd_Chains':False}               #
+Sphingolipids = {'Sphingosine':False,           #
+                 'N-acylsphingosine':False}     #
 Phosphosphingolipids = {'PA':False,
-                        'PC':True,
+                        'PC':False,             #
                         'PE':False,
                         'PG':False,
                         'PI':False,
                         'PIP':False,
                         'PIP2':False,
-                        'PS':False}
-Sphingo_Options = {'Variable_Sphingosine_Length':False}
+                        'PS':False,
+                        'MGDG':False,
+                        'DGDG':False}
+Sphingo_Options = {'Variable_Sphingosine_Length':False} #
 Chain_Number = {'MAG':1,
                 'DAG':2,
                 'TAG':3,
@@ -50,6 +54,8 @@ Adduct_Definitions = {'MAG':["[M+H]+", "[M+H-H2O]+", "[M+Na]+", "[M+NH4]+"],
                       'PIP':[],
                       'PIP2':[],
                       'PS':["[M-H]-", "[M+H]+", "[M+Na]+"],
+                      'MGDG':["[M+Na]+", "[M+NH4]+"], # LipidBlast seemed to have only "[M+Na]+" spectra. Seen "[M+NH4]+" and "[M-H]-" in some articles. Lipidblast also only has 1 fragment for these, and there aren't many characteristic studies.
+                      'DGDG':["[M+Na]+", "[M+NH4]+"],
                       'Sphingosine':["[M-H]-", "[M+Cl]-", "[M+H]+", "[M+Na]+"],
                       'N-acylsphingosine':["[M-H]-", "[M+Cl]-", "[M+H]+", "[M+Na]+"]}
 Adduct_Masses = {"[M-H]-":[-1.007276,'N'],
@@ -83,7 +89,9 @@ def calculate_peaks(path, species, tails, Adduct, lipids):
                       'PE':141.019094,
                       'PG':172.013674,
                       'PI':260.029718,
-                      'PS':185.008923}
+                      'PS':185.008923,
+                      'MGDG':180.063388, # Masses are just of the galactose ring
+                      'DGDG':342.116212}
     nl_Headgroup = {'PA':97.976895, # These are separate because I'm too tired to think of a clever way to derive them from the headgroup masses
                     'PI':180.063388 - Masses['H2O'],
                     'PE':0,
@@ -91,39 +99,50 @@ def calculate_peaks(path, species, tails, Adduct, lipids):
                     'PG':92.047344 - Masses['H2O']} # Neutral loss masses
 
     def gpl_characteristic(Mass):
-        characteristic = {'PA':{'N':[],                                                                                            'P':[[Mass - headgroup_mass['PA'] + Masses['H'], 100]]},
-                          'PC':{'N':[],                                                                                            'P':[[headgroup_mass['PC'] + Masses['H'], 100]]},
-                          'PE':{'N':[[140.011817, 3], [196.038032, 5]],                                                            'P':[[Mass - headgroup_mass['PE'] + Masses['H'], 100]]},
-                          'PG':{'N':[[209.022048, 5], [227.032612, 5], [245.043177, 5]],                                           'P':[[Mass - headgroup_mass['PG'] + Masses['H'], 100]]},
-                          'PI':{'N':[[223.001312, 5], [241.011877, 25], [259.022442, 5], [297.038092, 5], [315.048656, 5]],        'P':[]},
-                          'PS':{'N':[],                                                                                            'P':[[Mass - headgroup_mass['PS'] + Masses['H'], 100]]}}
+        characteristic = {'PA':{'N':[[78.959053, 5], [96.969618, 5],[152.995833, 10]],                                                                                              'P':[[Mass - headgroup_mass['PA'] + Masses['H'], 100]]},
+                          'PC':{'N':[[78.959053, 5], [96.969618, 5],[152.995833, 10]],                                                                                              'P':[[headgroup_mass['PC'] + Masses['H'], 100]]},
+                          'PE':{'N':[[78.959053, 5], [96.969618, 5],[152.995833, 10], [140.011817, 3], [196.038032, 5]],                                                            'P':[[Mass - headgroup_mass['PE'] + Masses['H'], 100]]},
+                          'PG':{'N':[[78.959053, 5], [96.969618, 5],[152.995833, 10], [209.022048, 5], [227.032612, 5], [245.043177, 5]],                                           'P':[[Mass - headgroup_mass['PG'] + Masses['H'], 100]]},
+                          'PI':{'N':[[78.959053, 5], [96.969618, 5],[152.995833, 10], [223.001312, 5], [241.011877, 25], [259.022442, 5], [297.038092, 5], [315.048656, 5]],        'P':[[]]},
+                          'PS':{'N':[[78.959053, 5], [96.969618, 5],[152.995833, 10]],                                                                                              'P':[[Mass - headgroup_mass['PS'] + Masses['H'], 100]]},
+                        'MGDG':{'N':[[]],                                                                                                                                           'P':[[Mass - headgroup_mass['MGDG'] + Masses['H2O'] + Masses['H'], 50]]},
+                        'DGDG':{'N':[[]],                                                                                                                                           'P':[[Mass - headgroup_mass['DGDG'] + Masses['H2O'] + Masses['H'], 50]]}}
         return characteristic
 
     def spl_characteristic(Mass):
-        characteristic = {'PA':{'N':[],                                                                                            'P':[[]]},
-                          'PC':{'N':[],                                                                                            'P':[[headgroup_mass['PC'] + Masses['H'], 100], [Mass - 59.073499 + Masses['H'], 25], [Mass - 59.073499 - Masses['H2O'] + Masses['H'], 25], [Mass - 183.066044 + Masses['H'], 25]]},
+        characteristic = {'PA':{'N':[[]],                                                                                          'P':[[]]},
+                          'PC':{'N':[[]],                                                                                          'P':[[headgroup_mass['PC'] + Masses['H'], 100], [Mass - 59.073499 + Masses['H'], 25], [Mass - 59.073499 - Masses['H2O'] + Masses['H'], 25], [Mass - 183.066044 + Masses['H'], 25]]},
                           'PE':{'N':[[140.011817, 3], [196.038032, 5]],                                                            'P':[[]]},
                           'PG':{'N':[[209.022048, 5], [227.032612, 5], [245.043177, 5]],                                           'P':[[]]},
-                          'PI':{'N':[[223.001312, 5], [241.011877, 25], [259.022442, 5], [297.038092, 5], [315.048656, 5]],        'P':[]},
-                          'PS':{'N':[],                                                                                            'P':[[]]}}
+                          'PI':{'N':[[223.001312, 5], [241.011877, 25], [259.022442, 5], [297.038092, 5], [315.048656, 5]],        'P':[[]]},
+                          'PS':{'N':[[]],                                                                                          'P':[[]]}}
         return characteristic
-        
+
+
+
     if path == 1 and Charge_Options['POS'] == True: # For MAG, DAG or TAG. Only positive spectra generated, so no negative path. ##### J Am Soc Mass Spectrom. 2010 April ; 21(4): 657–669. doi:10.1016/j.jasms.2010.01.007
         Mass = Masses['Glycerol'] # Begin with a glycerol backbone
         for tail in tails: # For every tail being added to the backbone, mass is increased by the mass of the tail and a water is removed to account for the bonding
             Mass += (tail[1] - Masses['H2O'])
             name.append(tail[0])
-
-        if Adduct == "[M+Na]+": # Na+ spectra are slightly different, they have peaks for both [DAG+Na+] and [DAG+H+]
+        if Adduct == "[M+Na]+": # Na+ spectra are slightly different, the FA fragments have both [Frag+Na+] and [Frag+H+]
+            if species != 'TAG':
+                Peaks.append([Mass - Masses['H2O'] + Adduct_Masses[Adduct][0], 50])
             for tail in tails: 
                 Peaks.append([(tail[1] - Masses['H2O'] + Adduct_Masses[Adduct][0]), 5]) # For every tail, add a fragment corresponding to [RC=O]+ to the spectra
-                Peaks.append([(Mass - tail[1] + Masses['H']), 40])
-                Peaks.append([(Mass - tail[1] + Adduct_Masses[Adduct][0]), 100]) # For every tail, add a fragment corresponding to the neutral loss of RCOOH to the spectra
-        else:
-            for tail in tails: 
-                Peaks.append([(tail[1] - Masses['H2O'] + Masses['H']), 5]) # For every tail, add a fragment corresponding to [RC=O]+ to the spectra
+                if species != 'MAG':                
+                    Peaks.append([(Mass - tail[1] + Adduct_Masses[Adduct][0]), 100]) # For every tail, add a fragment corresponding to the neutral loss of RCOOH to the spectra
+        if species != 'TAG':
+            if Adduct in {"[M+NH4]+", "[M+H]+"}: # Lipidblast includes "[M+H]+", "[M+H-H2O]+" parents in the "[M+NH4]" spectra.
+                Peaks.append([Mass + Adduct_Masses["[M+H]+"][0], 25])
+                Peaks.append([Mass + Adduct_Masses["[M+H-H2O]+"][0], 25])
+        for tail in tails: 
+            Peaks.append([(tail[1] - Masses['H2O'] + Masses['H']), 5]) # For every tail, add a fragment corresponding to [RC=O]+ to the spectra
+            if species != 'MAG':
                 Peaks.append([(Mass - tail[1] + Masses['H']), 100]) # For every tail, add a fragment corresponding to the neutral loss of RCOOH to the spectra
         Peaks.append([Mass + Adduct_Masses[Adduct][0], 25]) # Add [M+Adduct]+ to the spectra
+
+
 
     if path == 2: # For PA, PC, PE, PG, PI & PS GPLs ##### J Chromatogr B Analyt Technol Biomed Life Sci. 2009 September 15; 877(26): 2673–2695. doi:10.1016/j.jchromb.2009.02.033.
         Mass = Masses['Glycerol']
@@ -133,11 +152,7 @@ def calculate_peaks(path, species, tails, Adduct, lipids):
         if len(tails) < 2:
             name.append('0:0')  # Adds 0:0 to the name for Lyso GPLs 
         Mass += (headgroup_mass[species] - Masses['H2O'])
-        
         if Adduct_Masses[Adduct][1] == 'N' and Charge_Options['NEG'] == True: # Negative spectra
-            Peaks.append([78.959053, 5])    # PO3-
-            Peaks.append([96.969618, 5])    # H2PO4-
-            Peaks.append([152.995833, 10])  # Glycerol-3-phosphate, -H2O
             for fragment in gpl_characteristic(Mass)[species]['N']: Peaks.append(fragment)
             for tail in tails:
                 Peaks.append([tail[1] - Masses['H'], 100])
@@ -147,15 +162,19 @@ def calculate_peaks(path, species, tails, Adduct, lipids):
                 Peaks.append([Mass - nl_Headgroup[species] - tail[1] + Masses['H2O'] - Masses['H'], 5])
             Peaks.append([Mass + Adduct_Masses[Adduct][0], 25]) 
         elif Adduct_Masses[Adduct][1] == 'P' and Charge_Options['POS'] == True: # Positive Spectra
-
-            if Adduct == "[M+Na]+": # This is to account for the extra mass when the +'ve charge comes from Na+, whereas NH4, H, H-H2O all give H+
+            if Adduct == "[M+Na]+":
                 counter_ion = Adduct_Masses[Adduct][0]
             else: counter_ion = Masses['H']
             for fragment in gpl_characteristic(Mass)[species]['P']: Peaks.append(fragment)  
             for tail in tails:
-                if species != 'PC': 
+                if species in {'PA', 'PE', 'PG', 'PS'}: 
                     Peaks.append([gpl_characteristic(Mass)[species]['P'][0][0] - tail[1] + (Masses['H2O'] - Masses['H']) + counter_ion, 8])
-                if species == 'PC':
+                if species in {'MGDG', 'DGDG'}:
+                    Peaks.append([gpl_characteristic(Mass)[species]['P'][0][0] - Masses['H2O'], 50])
+                    Peaks.append([gpl_characteristic(Mass)[species]['P'][0][0] - tail[1] - Masses['H'] + counter_ion, 100]) 
+                    Peaks.append([Mass - tail[1] + Masses['H2O'] + counter_ion, 4])
+                    Peaks.append([Mass - tail[1] + counter_ion, 8])                   
+                if species in {'PC'}:
                     if Adduct == "[M+Na]+":
                         Peaks.append([Mass - 59.073499 + counter_ion, 8])#(Loss of N(CH3)3) Only happens for Alkaline salts?
                     Peaks.append([Mass - tail[1] + Masses['H2O'] + counter_ion, 4])
@@ -163,13 +182,14 @@ def calculate_peaks(path, species, tails, Adduct, lipids):
                 Peaks.append([tail[1] - Masses['H2O'] + counter_ion, 4]) # For every tail, add a fragment corresponding to [RC=O]+ to the spectra
             Peaks.append([Mass + Adduct_Masses[Adduct][0], 25]) 
 
+
+
     if path == 3:
         Mass = tails[0][1]
         try: Mass += tails[1][1] - Masses['H2O']
         except: pass
         for tail in tails:
             name.append(tail[0])
-
         if Adduct_Masses[Adduct][1] == 'N' and Charge_Options['NEG'] == True: # Negative spectra
             Peaks.append([Mass - 30.010565 - Masses['H'], 25])
             Peaks.append([Mass - 32.026215 - Masses['H'], 12])
@@ -179,7 +199,6 @@ def calculate_peaks(path, species, tails, Adduct, lipids):
                 Peaks.append([Mass - (tails[0][1] - 61.052764) - Masses['H2O'] - Masses['H'], 100])
                 Peaks.append([Mass - (tails[0][1] - 61.052764) - 3*Masses['H'], 12])
             except: pass
-
         elif Adduct_Masses[Adduct][1] == 'P' and Charge_Options['POS'] == True: # Positive Spectra
             Peaks.append([Mass - Masses['H2O'] + Adduct_Masses[Adduct][0], 60])
             Peaks.append([Mass - 2*Masses['H2O'] + Adduct_Masses[Adduct][0], 25])
@@ -189,15 +208,15 @@ def calculate_peaks(path, species, tails, Adduct, lipids):
             except: pass
         Peaks.append([Mass + Adduct_Masses[Adduct][0], 25])
 
+
+
     if path == 4: # This bit gets a bit messy here...
         Mass = tails[0][1] # Mass begins with the sphingoid base
         Mass += (headgroup_mass[species[1]] - Masses['H2O']) # Headgroup added to the base
         try: Mass += tails[1][1] - Masses['H2O'] # If there is a second tail, add that to the base too
         except: pass # Otherwise pass
-
         for tail in tails: # Add the name of the base and tail to the compound name
             name.append(tail[0])
-
         if Adduct_Masses[Adduct][1] == 'N' and Charge_Options['NEG'] == True: # Negative spectra
             for fragment in spl_characteristic(Mass)[species[1]]['N']: Peaks.append(fragment)
             Peaks.append([Mass - 30.010565 - Masses['H'], 25])
@@ -208,7 +227,6 @@ def calculate_peaks(path, species, tails, Adduct, lipids):
                 Peaks.append([Mass - (tails[0][1] - 61.052764) - Masses['H2O'] - Masses['H'], 100])
                 Peaks.append([Mass - (tails[0][1] - 61.052764) - 3*Masses['H'], 12])
             except: pass
-
         if Adduct == "[M+Na]+": # This is to account for the extra mass when the +'ve charge comes from Na+, whereas NH4, H, H-H2O all give H+
             counter_ion = Adduct_Masses[Adduct][0]
         else: counter_ion = Masses['H']
@@ -216,14 +234,14 @@ def calculate_peaks(path, species, tails, Adduct, lipids):
             for fragment in spl_characteristic(Mass)[species[1]]['P']: Peaks.append(fragment)
             Peaks.append([Mass - Masses['H2O'] + counter_ion, 60])
             Peaks.append([Mass - 2*Masses['H2O'] + counter_ion, 10])
-            Peaks.append([Mass - headgroup_mass[species[1]] + counter_ion, 5 ])
+            Peaks.append([Mass - headgroup_mass[species[1]] + counter_ion, 10])
             try:
-                Peaks.append([Mass - tails[1][1] + counter_ion, 10])
-                Peaks.append([Mass - tails[1][1] - Masses['H2O'] + counter_ion, 10])
-                Peaks.append([Mass - headgroup_mass[species[1]] - tails[1][1] + counter_ion, 10])
+                Peaks.append([Mass - tails[1][1] - Masses['H'] + counter_ion, 20])
+                Peaks.append([Mass - headgroup_mass[species[1]] - tails[1][1] + counter_ion, 20])
             except: pass
         Peaks.append([Mass + Adduct_Masses[Adduct][0], 25])
         species = f"{species[1]} {species[0]}" # Converts the name from a list to a string, in the form "Headgroup Sphingolipid"
+
 
 
     Peaks.sort()
@@ -275,10 +293,10 @@ def calculate_sphingo_tail(tail):
 
 def new_spectrum_library():
 
-    Cmin = 12   # Min and Max number of Carbons
-    Cmax = 12 + 1
-    Dmin = 0    # Min and Max number of Desaturated bonds
-    Dmax = 0 + 1
+    Cmin = 18   # Min and Max number of Carbons
+    Cmax = 18 + 1
+    Dmin = 4    # Min and Max number of Desaturated bonds
+    Dmax = 4 + 1
 
     tails = []
     lipids = {}
@@ -297,8 +315,8 @@ def new_spectrum_library():
             for comb in cwr(tails, Chain_Number[species]):
                 calculate_peaks(1, species, calculate_acyl_tail(comb), Adduct, lipids)
 
-    for species in list(compress([lipid for lipid in Glycerophospholipids_Options],[int(Glycerophospholipids_Options[lipid]) for lipid in Glycerophospholipids_Options])):
-        for headgroup in list(compress([lipid for lipid in Glycerophospholipids],[int(Glycerophospholipids[lipid]) for lipid in Glycerophospholipids])): # For Glycerophospholipids
+    for species in list(compress([lipid for lipid in Glycero_phospho_glyco_lipids_Options],[int(Glycero_phospho_glyco_lipids_Options[lipid]) for lipid in Glycero_phospho_glyco_lipids_Options])):
+        for headgroup in list(compress([lipid for lipid in Glycero_phospho_glyco_lipids],[int(Glycero_phospho_glyco_lipids[lipid]) for lipid in Glycero_phospho_glyco_lipids])): # For Glycerophospholipids and Glyceroglycolipids
             for Adduct in Adduct_Definitions[headgroup]:
                 for comb in cwr(tails, Chain_Number[species]):
                     calculate_peaks(2, headgroup, calculate_acyl_tail(comb), Adduct, lipids)
